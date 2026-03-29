@@ -3,12 +3,16 @@ import collections
 import torch
 from torch.autograd import Variable
 import torch.optim as optim
+from pathlib import Path
 
-import rnn
+import rnn as rnn_lstm
 
 start_token = 'G'
 end_token = 'E'
 batch_size = 64
+BASE_DIR = Path(__file__).resolve().parent
+POEMS_FILE = BASE_DIR / 'poems.txt'
+MODEL_FILE = BASE_DIR / 'poem_generator_rnn'
 
 
 def process_poems1(file_name):
@@ -122,7 +126,7 @@ def generate_batch(batch_size, poems_vec, word_to_int):
 def run_training():
     # 处理数据集
     # poems_vector, word_to_int, vocabularies = process_poems2('./tangshi.txt')
-    poems_vector, word_to_int, vocabularies = process_poems1('./poems.txt')
+    poems_vector, word_to_int, vocabularies = process_poems1(str(POEMS_FILE))
     # 生成batch
     print("finish  loadding data")
     BATCH_SIZE = 100
@@ -144,7 +148,7 @@ def run_training():
             batch_x = batches_inputs[batch]
             batch_y = batches_outputs[batch] # (batch , time_step)
 
-            loss = 0
+            loss = torch.tensor(0.0)
             for index in range(BATCH_SIZE):
                 x = np.array(batch_x[index], dtype = np.int64)
                 y = np.array(batch_y[index], dtype = np.int64)
@@ -165,7 +169,7 @@ def run_training():
             optimizer.step()
 
             if batch % 20 ==0:
-                torch.save(rnn_model.state_dict(), './poem_generator_rnn')
+                torch.save(rnn_model.state_dict(), str(MODEL_FILE))
                 print("finish  save model")
 
 
@@ -185,20 +189,24 @@ def pretty_print_poem(poem):  # 令打印的结果更工整
         if w == start_token or w == end_token:
             break
         shige.append(w)
-    poem_sentences = poem.split('。')
+    poem_text = ''.join(shige)
+    poem_sentences = poem_text.split('。')
     for s in poem_sentences:
-        if s != '' and len(s) > 10:
+        if s != '':
             print(s + '。')
 
 
 def gen_poem(begin_word):
     # poems_vector, word_int_map, vocabularies = process_poems2('./tangshi.txt')  #  use the other dataset to train the network
-    poems_vector, word_int_map, vocabularies = process_poems1('./poems.txt')
+    poems_vector, word_int_map, vocabularies = process_poems1(str(POEMS_FILE))
     word_embedding = rnn_lstm.word_embedding(vocab_length=len(word_int_map) + 1, embedding_dim=100)
     rnn_model = rnn_lstm.RNN_model(batch_sz=64, vocab_len=len(word_int_map) + 1, word_embedding=word_embedding,
                                    embedding_dim=100, lstm_hidden_dim=128)
 
-    rnn_model.load_state_dict(torch.load('./poem_generator_rnn'))
+    if not MODEL_FILE.exists():
+        raise FileNotFoundError(f"model file not found: {MODEL_FILE}")
+
+    rnn_model.load_state_dict(torch.load(str(MODEL_FILE)))
 
     # 指定开始的字
 
@@ -218,16 +226,15 @@ def gen_poem(begin_word):
 
 
 
-run_training()  # 如果不是训练阶段 ，请注销这一行 。 网络训练时间很长。
-
-
-pretty_print_poem(gen_poem("日"))
-pretty_print_poem(gen_poem("红"))
-pretty_print_poem(gen_poem("山"))
-pretty_print_poem(gen_poem("夜"))
-pretty_print_poem(gen_poem("湖"))
-pretty_print_poem(gen_poem("湖"))
-pretty_print_poem(gen_poem("湖"))
-pretty_print_poem(gen_poem("君"))
+if __name__ == '__main__':
+    # run_training()  # 如果不是训练阶段 ，请注销这一行 。 网络训练时间很长。
+    pretty_print_poem(gen_poem("日"))
+    pretty_print_poem(gen_poem("红"))
+    pretty_print_poem(gen_poem("山"))
+    pretty_print_poem(gen_poem("夜"))
+    pretty_print_poem(gen_poem("湖"))
+    pretty_print_poem(gen_poem("湖"))
+    pretty_print_poem(gen_poem("湖"))
+    pretty_print_poem(gen_poem("君"))
 
 
